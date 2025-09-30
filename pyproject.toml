@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trangle"                      # choose a unique name on PyPI!
+version = "0.1.0"
+description = "TCR geometry calculation and visualization tools"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+authors = [{ name = "Your Name", email = "you@example.com" }]
+
+# pin minimal versions you’ve tested
+dependencies = [
+  "numpy>=1.22",
+  "pandas>=1.5",
+  "biopython>=1.80",
+  "biotite>=0.40",
+  "MDAnalysis>=2.4",
+  "tqdm>=4.65",
+]
+
+# Optional groups: pip install trangle[vis]
+[project.optional-dependencies]
+vis = ["pymol-open-source>=2.5"]   # or leave out if not needed
+
+# create console commands: pip installs `trangle-calc` and `trangle-calc-md`
+[project.scripts]
+trangle-calc = "trangle.new_calc:main"
+trangle-calc-md = "trangle.new_calc_md:main"
+trangle-change = "trangle.change_geometry:main"
+trangle-extract = "trangle.get_anchor_coords:main"
+
+[project.urls]
+Homepage = "https://github.com/LilianDenzler/TCRangle"
+Issues = "https://github.com/LilianDenzler/TCRangle/issues"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+# auto-include all packages under src/
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["trangle*"]
+
+# include non-Python files inside the package
+[tool.setuptools.package-data]
+trangle = ["data/**/*"]
