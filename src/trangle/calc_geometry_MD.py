@@ -5,9 +5,23 @@ from tqdm import tqdm
 import sys, os
 from contextlib import redirect_stdout
 import warnings
+from importlib.resources import files
+from importlib.resources.abc import Traversable
+from pathlib import Path
+
+def resolve_data_path(user_data_path=None) -> Path:
+    # if caller passed a Traversable (e.g. from files(...)), turn it into a real-ish path
+    if isinstance(user_data_path, Traversable):
+        return Path(str(user_data_path))
+    # if caller passed a normal path/string, use it
+    if user_data_path:
+        return Path(user_data_path)
+    # otherwise use packaged data; cast Traversable -> str -> Path
+    return Path(str(files("trangle") / "data" / "consensus_output"))
+
 warnings.filterwarnings("ignore", message=".*formalcharges.*")
 
-def run(input_pdb, input_md, out_path, data_path=data_path, vis=False):
+def run(input_pdb, input_md, out_path, data_path, vis=False):
     """
     data_path should contain:
       - chain_A/average_structure_with_pca.pdb   (has CEN/PC1/PC2 in chain Z)
@@ -97,16 +111,18 @@ def main():
     parser = argparse.ArgumentParser(description="Calculate TCR geometric parameters over an MD trajectory.")
     parser.add_argument('--input_pdb', type=str, required=True, help='Path to input PDB file.')
     parser.add_argument('--input_md', type=str, required=True, help='Path to input MD trajectory file (e.g., DCD).')
-    parser.add_argument('--data_path', type=str, required=False, help='Path to data directory containing consensus files.', default=data_path)
-    parser.add_argument('--out_path', type=str, required=False, help='Output directory for results.', default=out_path)
-    parser.add_argument('--vis', action='store_true', help='Disable visualization output.')
+    parser.add_argument('--data_path', type=str, required=False, help='Path to data directory containing consensus files.')
+    parser.add_argument('--out_path', type=str, required=False, help='Output directory for results.')
+    parser.add_argument('--vis', action='store_true', help='PyMol visualization output.')
     args = parser.parse_args()
+    vis_val=not args.vis
+    dp = resolve_data_path(args.data_path)
     run(
         input_pdb=args.input_pdb,
         input_md=args.input_md,
         out_path=args.out_path,
-        data_path=args.data_path,
-        vis=args.vis
+        data_path=str(dp),
+        vis=vis_val
     )
 
 if __name__ == "__main__":

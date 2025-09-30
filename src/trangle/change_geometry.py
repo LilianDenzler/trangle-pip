@@ -12,7 +12,19 @@ from trangle.anarci_numbering import variable_renumber
 warnings.filterwarnings("ignore", ".*is discontinuous.*")
 
 from importlib.resources import files
-data_path = files("trangle.data.consensus_output")
+from importlib.resources.abc import Traversable
+from pathlib import Path
+
+def resolve_data_path(user_data_path=None) -> Path:
+    # if caller passed a Traversable (e.g. from files(...)), turn it into a real-ish path
+    if isinstance(user_data_path, Traversable):
+        return Path(str(user_data_path))
+    # if caller passed a normal path/string, use it
+    if user_data_path:
+        return Path(user_data_path)
+    # otherwise use packaged data; cast Traversable -> str -> Path
+    return Path(str(files("trangle") / "data" / "consensus_output"))
+
 
 def write_renumbered_fv(out_path, in_path):
     imgt_pdb = os.path.join(out_path)
@@ -259,7 +271,7 @@ cmd.quit()
         f.write(script)
     return vis_script_path
 
-def run(input_pdb, out_path, BA, BC1, BC2, AC1, AC2, dc, data_path=data_path):
+def run(input_pdb, out_path, BA, BC1, BC2, AC1, AC2, dc, data_path, vis=True):
     # --- Define paths to input data ---
     consA_pca_path = os.path.join(data_path, "chain_A/average_structure_with_pca.pdb")
     consB_pca_path = os.path.join(data_path, "chain_B/average_structure_with_pca.pdb")
@@ -275,7 +287,8 @@ def run(input_pdb, out_path, BA, BC1, BC2, AC1, AC2, dc, data_path=data_path):
     pdb_name = Path(input_pdb).stem
     out_dir = Path(out_path); out_dir.mkdir(exist_ok=True)
     tmp_out = out_dir / pdb_name; tmp_out.mkdir(exist_ok=True)
-    vis_folder = tmp_out / "vis"; vis_folder.mkdir(exist_ok=True)
+    if vis:
+        vis_folder = tmp_out / "vis"; vis_folder.mkdir(exist_ok=True)
 
     renumbered_pdb = str(tmp_out / f"{pdb_name}_imgt.pdb")
     renumbered_pdb_fv =str(tmp_out / f"{pdb_name}_imgt_fv.pdb")
@@ -313,21 +326,22 @@ def run(input_pdb, out_path, BA, BC1, BC2, AC1, AC2, dc, data_path=data_path):
     move_chains_to_geometry(new_consensus_pdb, renumbered_pdb_fv, final_aligned_pdb, A_consenus_res, B_consenus_res)
 
     # 5. Generate visualization script
-    vis_script = generate_pymol_script(
-        final_aligned_pdb, new_consensus_pdb,
-        A_C, A_V1, A_V2, B_C, B_V1, B_V2, pdb_name, str(vis_folder)
-    )
+    if vis:
+        vis_script = generate_pymol_script(
+            final_aligned_pdb, new_consensus_pdb,
+            A_C, A_V1, A_V2, B_C, B_V1, B_V2, pdb_name, str(vis_folder)
+        )
 
-    print(f"\n✅ PyMOL script saved. Run with:\n   pymol -cq {vis_script}")
-    os.system(f"pymol -cq {vis_script}")
-    print(f"Output files saved in: {tmp_out}")
+        print(f"\n✅ PyMOL script saved. Run with:\n   pymol -cq {vis_script}")
+        os.system(f"pymol -cq {vis_script}")
+        print(f"Output files saved in: {tmp_out}")
 
 
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="Reorient a TCR structure based on 6 geometric parameters.")
     parser.add_argument('--input_pdb', type=str, required=True, help='Path to input PDB file.')
-    parser.add_argument('--data_path', type=str, required=False, help='Path to data directory containing consensus files.', default=data_path)
+    parser.add_argument('--data_path', type=str, required=False, help='Path to data directory containing consensus files.')
     parser.add_argument('--out_path', type=str, required=True, help='Output directory for results.')
     parser.add_argument('--BA', type=float, required=True, help='Torsion angle between PC1_A and PC1_B.')
     parser.add_argument('--BC1', type=float, required=True, help='Bend angle between PC1_B and center axis.')
@@ -335,15 +349,18 @@ def main():
     parser.add_argument('--AC1', type=float, required=True, help='Bend angle between PC1_A and center axis.')
     parser.add_argument('--AC2', type=float, required=True, help='Bend angle between PC2_A and center axis.')
     parser.add_argument('--dc', type=float, required=True, help='Distance between centroids.')
+    parser.add_argument("--vis", action="store_true", help="PyMOL visualization.")
 
     args = parser.parse_args()
-
+    vis_val=not args.vis
+    dp = resolve_data_path(args.data_path)
     run(
         input_pdb=args.input_pdb,
         out_path=args.out_path,
         BA=args.BA, BC1=args.BC1, BC2=args.BC2,
         AC1=args.AC1, AC2=args.AC2, dc=args.dc,
-        data_path=args.data_path
+        data_path=str(dp),
+        vis=vis_val
     )
 
 if __name__ == "__main__":

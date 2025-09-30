@@ -3,13 +3,13 @@ requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "trangle"                      # choose a unique name on PyPI!
+name = "tcrgeometry"
 version = "0.1.0"
 description = "TCR geometry calculation and visualization tools"
 readme = "README.md"
 requires-python = ">=3.9"
 license = { file = "LICENSE" }
-authors = [{ name = "Your Name", email = "you@example.com" }]
+authors = [{ name = "Lilian Denzler", email = "lilian.denzler@yale.edu" }]
 
 # pin minimal versions you’ve tested
 dependencies = [
@@ -27,8 +27,8 @@ vis = ["pymol-open-source>=2.5"]   # or leave out if not needed
 
 # create console commands: pip installs `trangle-calc` and `trangle-calc-md`
 [project.scripts]
-trangle-calc = "trangle.new_calc:main"
-trangle-calc-md = "trangle.new_calc_md:main"
+trangle-calc = "trangle.calc_geometry:main"
+trangle-calc-md = "trangle.calc_geometry_MD:main"
 trangle-change = "trangle.change_geometry:main"
 trangle-extract = "trangle.get_anchor_coords:main"
 

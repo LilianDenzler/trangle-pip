@@ -1,3 +1,17 @@
+### Extra dependencies
+
+For TCR numbering, `ANARCI` must be installed via bioconda:
+
+```bash
+conda install -c bioconda anarci
+```
+
+For visualization, `PyMOL` must be installed via bioconda:
+
+```bash
+conda install conda-forge::pymol-open-source
+```
+
 ## Set up environment
 The file `environment.yml` specifies the dependencies required to run the TRangle package. You can create a conda environment using this file:
 

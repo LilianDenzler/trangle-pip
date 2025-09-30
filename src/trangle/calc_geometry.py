@@ -18,9 +18,22 @@ import biotite.structure.io as btsio
 from trangle.anarci_numbering import variable_renumber
 
 from importlib.resources import files
-warnings.filterwarnings("ignore", ".*is discontinuous.*")
-data_path = files("trangle.data.consensus_output")
+from pathlib import Path
 
+warnings.filterwarnings("ignore", ".*is discontinuous.*")
+from importlib.resources import files
+from importlib.resources.abc import Traversable
+from pathlib import Path
+
+def resolve_data_path(user_data_path=None) -> Path:
+    # if caller passed a Traversable (e.g. from files(...)), turn it into a real-ish path
+    if isinstance(user_data_path, Traversable):
+        return Path(str(user_data_path))
+    # if caller passed a normal path/string, use it
+    if user_data_path:
+        return Path(user_data_path)
+    # otherwise use packaged data; cast Traversable -> str -> Path
+    return Path(str(files("trangle") / "data" / "consensus_output"))
 
 def write_renumbered_fv(out_path, in_path):
     """
@@ -357,7 +370,7 @@ cmd.quit()
 # -------------------------
 # Public API (similar to your previous run() signature)
 # -------------------------
-def run(input_pdb, out_path, data_path=data_path, vis=True):
+def run(input_pdb, out_path, data_path, vis=True):
     """
     data_path should contain:
       - chain_A/average_structure_with_pca.pdb   (has CEN/PC1/PC2 in chain Z)
@@ -412,13 +425,14 @@ def main():
     parser = argparse.ArgumentParser(description="Calculate TCR geometry from pseudoatom-defined axes (no geometry modification).")
     parser.add_argument("--input_pdb", type=str, help="Path to input PDB.")
     parser.add_argument("--out_path", type=str, required=True)
-    parser.add_argument("--data_path", type=str, required=False, default=data_path,
+    parser.add_argument("--data_path", type=str, required=False,
                         help="Folder with chain_A/average_structure_with_pca.pdb and chain_B/average_structure_with_pca.pdb (with CEN/PC1/PC2 on chain Z).")
-    parser.add_argument("--no_vis", action="store_true", help="Skip PyMOL visualization.")
+    parser.add_argument("--vis", action="store_true", help="PyMOL visualization.")
     args = parser.parse_args()
-
+    dp = resolve_data_path(args.data_path)
+    vis_val=not args.vis
     if args.input_pdb:
-        run(args.input_pdb, args.out_path, args.data_path, vis=not args.no_vis)
+        run(args.input_pdb, args.out_path, str(dp), vis=vis_val)
 
 
 if __name__ == "__main__":
