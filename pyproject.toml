@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tcrgeometry"
-version = "0.1.0"
+version = "0.1.7"
 description = "TCR geometry calculation and visualization tools"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -21,16 +21,16 @@ dependencies = [
   "tqdm>=4.65",
 ]
 
-# Optional groups: pip install trangle[vis]
+# Optional groups:
 [project.optional-dependencies]
 vis = ["pymol-open-source>=2.5"]   # or leave out if not needed
 
-# create console commands: pip installs `trangle-calc` and `trangle-calc-md`
+# create console commands: pip installs these as scripts
 [project.scripts]
-trangle-calc = "trangle.calc_geometry:main"
-trangle-calc-md = "trangle.calc_geometry_MD:main"
-trangle-change = "trangle.change_geometry:main"
-trangle-extract = "trangle.get_anchor_coords:main"
+tcr-calc = "tcrgeometry.calc_geometry:main"
+tcr-calc-md = "tcrgeometry.calc_geometry_MD:main"
+tcr-change = "tcrgeometry.change_geometry:main"
+tcr-extract-anchor = "tcrgeometry.get_anchor_coords:main"
 
 [project.urls]
 Homepage = "https://github.com/LilianDenzler/TCRangle"
@@ -42,8 +42,8 @@ package-dir = {"" = "src"}
 # auto-include all packages under src/
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["trangle*"]
+include = ["tcrgeometry*"]
 
 # include non-Python files inside the package
 [tool.setuptools.package-data]
-trangle = ["data/**/*"]
+tcrgeometry = ["data/**/*"]

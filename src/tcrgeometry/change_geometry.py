@@ -7,30 +7,28 @@ import json
 import tempfile
 import biotite.structure as bts
 import biotite.structure.io as btsio
-from trangle.anarci_numbering import variable_renumber
+from tcrgeometry.numbering import process_pdb
+from . import DATA_PATH
 # Suppress PDB parsing warnings for cleaner output
 warnings.filterwarnings("ignore", ".*is discontinuous.*")
 
-from importlib.resources import files
-from importlib.resources.abc import Traversable
+
 from pathlib import Path
 
-def resolve_data_path(user_data_path=None) -> Path:
-    # if caller passed a Traversable (e.g. from files(...)), turn it into a real-ish path
-    if isinstance(user_data_path, Traversable):
-        return Path(str(user_data_path))
-    # if caller passed a normal path/string, use it
-    if user_data_path:
-        return Path(user_data_path)
-    # otherwise use packaged data; cast Traversable -> str -> Path
-    return Path(str(files("trangle") / "data" / "consensus_output"))
 
-
-def write_renumbered_fv(out_path, in_path):
-    imgt_pdb = os.path.join(out_path)
-    variable_pdb_imgt = os.path.join(out_path.replace(".pdb", "_fv.pdb"))
-    A_chain, B_chain, imgt_path=variable_renumber(in_path, imgt_pdb, variable_pdb_imgt)
-    return out_path
+def write_renumbered_fv(out_folder, in_path):
+    """
+    Uses your ANARCII renumbering to produce an IMGT-numbered FV PDB.
+    Mirrors your existing helper signature/behavior.
+    """
+    outputs=process_pdb(
+        input_pdb=in_path,
+        out_prefix=out_folder,
+        write_fv= True
+        )
+    full_imgt=outputs["pairs"][0]["files"]["full"]
+    variable_pdb_imgt=outputs["pairs"][0]["files"]["variable"]
+    return full_imgt,variable_pdb_imgt
 
 # ========================
 # Geometry and Math Helpers
@@ -271,15 +269,15 @@ cmd.quit()
         f.write(script)
     return vis_script_path
 
-def run(input_pdb, out_path, BA, BC1, BC2, AC1, AC2, dc, data_path, vis=True):
+def run(input_pdb, out_path, BA, BC1, BC2, AC1, AC2, dc, vis=True):
     # --- Define paths to input data ---
-    consA_pca_path = os.path.join(data_path, "chain_A/average_structure_with_pca.pdb")
-    consB_pca_path = os.path.join(data_path, "chain_B/average_structure_with_pca.pdb")
+    consA_pca_path = os.path.join(DATA_PATH, "chain_A/average_structure_with_pca.pdb")
+    consB_pca_path = os.path.join(DATA_PATH, "chain_B/average_structure_with_pca.pdb")
     #read file with consensus alignment residues as list of integers
-    with open(os.path.join(data_path, "chain_A/consensus_alignment_residues.txt"), "r") as f:
+    with open(os.path.join(DATA_PATH, "chain_A/consensus_alignment_residues.txt"), "r") as f:
         content = f.read().strip()
     A_consenus_res = [int(x) for x in content.split(",") if x.strip()]
-    with open(os.path.join(data_path, "chain_B/consensus_alignment_residues.txt"), "r") as f:
+    with open(os.path.join(DATA_PATH, "chain_B/consensus_alignment_residues.txt"), "r") as f:
         content = f.read().strip()
     B_consenus_res = [int(x) for x in content.split(",") if x.strip()]
 
@@ -290,9 +288,8 @@ def run(input_pdb, out_path, BA, BC1, BC2, AC1, AC2, dc, data_path, vis=True):
     if vis:
         vis_folder = tmp_out / "vis"; vis_folder.mkdir(exist_ok=True)
 
-    renumbered_pdb = str(tmp_out / f"{pdb_name}_imgt.pdb")
-    renumbered_pdb_fv =str(tmp_out / f"{pdb_name}_imgt_fv.pdb")
-    write_renumbered_fv(renumbered_pdb, input_pdb)
+
+    renumbered_pdb,renumbered_pdb_fv=write_renumbered_fv(tmp_out, input_pdb)
 
     # 1. Build the target geometry from the input angles
     A_C, A_V1, A_V2, B_C, B_V1, B_V2 = build_geometry_from_angles(BA, BC1, BC2, AC1, AC2, dc)
@@ -335,13 +332,13 @@ def run(input_pdb, out_path, BA, BC1, BC2, AC1, AC2, dc, data_path, vis=True):
         print(f"\n✅ PyMOL script saved. Run with:\n   pymol -cq {vis_script}")
         os.system(f"pymol -cq {vis_script}")
         print(f"Output files saved in: {tmp_out}")
+    return final_aligned_pdb
 
 
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="Reorient a TCR structure based on 6 geometric parameters.")
     parser.add_argument('--input_pdb', type=str, required=True, help='Path to input PDB file.')
-    parser.add_argument('--data_path', type=str, required=False, help='Path to data directory containing consensus files.')
     parser.add_argument('--out_path', type=str, required=True, help='Output directory for results.')
     parser.add_argument('--BA', type=float, required=True, help='Torsion angle between PC1_A and PC1_B.')
     parser.add_argument('--BC1', type=float, required=True, help='Bend angle between PC1_B and center axis.')
@@ -352,14 +349,12 @@ def main():
     parser.add_argument("--vis", action="store_true", help="PyMOL visualization.")
 
     args = parser.parse_args()
-    vis_val=not args.vis
-    dp = resolve_data_path(args.data_path)
+    vis_val= True if args.vis else False
     run(
         input_pdb=args.input_pdb,
         out_path=args.out_path,
         BA=args.BA, BC1=args.BC1, BC2=args.BC2,
         AC1=args.AC1, AC2=args.AC2, dc=args.dc,
-        data_path=str(dp),
         vis=vis_val
     )
 

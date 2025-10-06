@@ -1,39 +1,23 @@
-from trangle.calc_geometry import *
+from tcrgeometry.calc_geometry import *
 import MDAnalysis as mda
 import tempfile
 from tqdm import tqdm
 import sys, os
 from contextlib import redirect_stdout
 import warnings
-from importlib.resources import files
-from importlib.resources.abc import Traversable
+from . import DATA_PATH
 from pathlib import Path
-
-def resolve_data_path(user_data_path=None) -> Path:
-    # if caller passed a Traversable (e.g. from files(...)), turn it into a real-ish path
-    if isinstance(user_data_path, Traversable):
-        return Path(str(user_data_path))
-    # if caller passed a normal path/string, use it
-    if user_data_path:
-        return Path(user_data_path)
-    # otherwise use packaged data; cast Traversable -> str -> Path
-    return Path(str(files("trangle") / "data" / "consensus_output"))
 
 warnings.filterwarnings("ignore", message=".*formalcharges.*")
 
-def run(input_pdb, input_md, out_path, data_path, vis=False):
-    """
-    data_path should contain:
-      - chain_A/average_structure_with_pca.pdb   (has CEN/PC1/PC2 in chain Z)
-      - chain_B/average_structure_with_pca.pdb   (has CEN/PC1/PC2 in chain Z)
-    """
-    consA_pca_path = os.path.join(data_path, "chain_A/average_structure_with_pca.pdb")
-    consB_pca_path = os.path.join(data_path, "chain_B/average_structure_with_pca.pdb")
+def run(input_pdb, input_md, out_path, vis=False):
+    consA_pca_path = os.path.join(DATA_PATH, "chain_A/average_structure_with_pca.pdb")
+    consB_pca_path = os.path.join(DATA_PATH, "chain_B/average_structure_with_pca.pdb")
      #read file with consensus alignment residues as list of integers
-    with open(os.path.join(data_path, "chain_A/consensus_alignment_residues.txt"), "r") as f:
+    with open(os.path.join(DATA_PATH, "chain_A/consensus_alignment_residues.txt"), "r") as f:
         content = f.read().strip()
     A_consenus_res = [int(x) for x in content.split(",") if x.strip()]
-    with open(os.path.join(data_path, "chain_B/consensus_alignment_residues.txt"), "r") as f:
+    with open(os.path.join(DATA_PATH, "chain_B/consensus_alignment_residues.txt"), "r") as f:
         content = f.read().strip()
     B_consenus_res = [int(x) for x in content.split(",") if x.strip()]
 
@@ -43,8 +27,7 @@ def run(input_pdb, input_md, out_path, data_path, vis=False):
     vis_folder = tmp_out / "vis"
     if vis:
         vis_folder.mkdir(exist_ok=True)
-    imgt_path = str(tmp_out / f"{pdb_name}_imgt.pdb")
-    imgt_path, fv_input=write_renumbered_fv(imgt_path, input_pdb)
+    imgt_path, fv_input=write_renumbered_fv(tmp_out, input_pdb)
     input_pdb=imgt_path
     # MDAnalysis Universe
     u = mda.Universe(str(input_pdb), str(input_md))
@@ -111,17 +94,14 @@ def main():
     parser = argparse.ArgumentParser(description="Calculate TCR geometric parameters over an MD trajectory.")
     parser.add_argument('--input_pdb', type=str, required=True, help='Path to input PDB file.')
     parser.add_argument('--input_md', type=str, required=True, help='Path to input MD trajectory file (e.g., DCD).')
-    parser.add_argument('--data_path', type=str, required=False, help='Path to data directory containing consensus files.')
     parser.add_argument('--out_path', type=str, required=False, help='Output directory for results.')
     parser.add_argument('--vis', action='store_true', help='PyMol visualization output.')
     args = parser.parse_args()
-    vis_val=not args.vis
-    dp = resolve_data_path(args.data_path)
+    vis_val= True if args.vis else False
     run(
         input_pdb=args.input_pdb,
         input_md=args.input_md,
         out_path=args.out_path,
-        data_path=str(dp),
         vis=vis_val
     )
 

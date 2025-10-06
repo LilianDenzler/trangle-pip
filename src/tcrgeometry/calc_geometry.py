@@ -15,35 +15,27 @@ import biotite.structure as bts
 import biotite.structure.io as btsio
 
 # Your ANARCI-based renumbering (pass-through to your function)
-from trangle.anarci_numbering import variable_renumber
-
+from tcrgeometry.numbering import process_pdb
+from . import DATA_PATH
 from importlib.resources import files
 from pathlib import Path
 
 warnings.filterwarnings("ignore", ".*is discontinuous.*")
-from importlib.resources import files
-from importlib.resources.abc import Traversable
 from pathlib import Path
 
-def resolve_data_path(user_data_path=None) -> Path:
-    # if caller passed a Traversable (e.g. from files(...)), turn it into a real-ish path
-    if isinstance(user_data_path, Traversable):
-        return Path(str(user_data_path))
-    # if caller passed a normal path/string, use it
-    if user_data_path:
-        return Path(user_data_path)
-    # otherwise use packaged data; cast Traversable -> str -> Path
-    return Path(str(files("trangle") / "data" / "consensus_output"))
-
-def write_renumbered_fv(out_path, in_path):
+def write_renumbered_fv(out_folder, in_path):
     """
-    Uses your ANARCI renumbering to produce an IMGT-numbered FV PDB.
+    Uses your ANARCII renumbering to produce an IMGT-numbered FV PDB.
     Mirrors your existing helper signature/behavior.
     """
-    imgt_pdb = os.path.join(out_path)
-    variable_pdb_imgt = os.path.join(out_path.replace(".pdb", "_fv.pdb"))
-    A_chain, B_chain, imgt_path = variable_renumber(in_path, imgt_pdb, variable_pdb_imgt)
-    return out_path, variable_pdb_imgt
+    outputs=process_pdb(
+        input_pdb=in_path,
+        out_prefix=out_folder,
+        write_fv= True
+        )
+    full_imgt=outputs["pairs"][0]["files"]["full"]
+    variable_pdb_imgt=outputs["pairs"][0]["files"]["variable"]
+    return full_imgt,variable_pdb_imgt
 
 # -------------------------
 # Geometry helpers
@@ -370,19 +362,15 @@ cmd.quit()
 # -------------------------
 # Public API (similar to your previous run() signature)
 # -------------------------
-def run(input_pdb, out_path, data_path, vis=True):
-    """
-    data_path should contain:
-      - chain_A/average_structure_with_pca.pdb   (has CEN/PC1/PC2 in chain Z)
-      - chain_B/average_structure_with_pca.pdb   (has CEN/PC1/PC2 in chain Z)
-    """
-    consA_pca_path = os.path.join(data_path, "chain_A/average_structure_with_pca.pdb")
-    consB_pca_path = os.path.join(data_path, "chain_B/average_structure_with_pca.pdb")
+def run(input_pdb, out_path, vis=True):
+
+    consA_pca_path = os.path.join(DATA_PATH, "chain_A/average_structure_with_pca.pdb")
+    consB_pca_path = os.path.join(DATA_PATH, "chain_B/average_structure_with_pca.pdb")
      #read file with consensus alignment residues as list of integers
-    with open(os.path.join(data_path, "chain_A/consensus_alignment_residues.txt"), "r") as f:
+    with open(os.path.join(DATA_PATH, "chain_A/consensus_alignment_residues.txt"), "r") as f:
         content = f.read().strip()
     A_consenus_res = [int(x) for x in content.split(",") if x.strip()]
-    with open(os.path.join(data_path, "chain_B/consensus_alignment_residues.txt"), "r") as f:
+    with open(os.path.join(DATA_PATH, "chain_B/consensus_alignment_residues.txt"), "r") as f:
         content = f.read().strip()
     B_consenus_res = [int(x) for x in content.split(",") if x.strip()]
 
@@ -393,9 +381,8 @@ def run(input_pdb, out_path, data_path, vis=True):
     if vis:
         vis_folder.mkdir(exist_ok=True)
 
-    # Renumber to FV (keeps your pipeline consistent)
-    out_path = str(tmp_out / f"{pdb_name}_imgt.pdb")
-    out_path, fv_input=write_renumbered_fv(out_path, input_pdb)
+
+    out_path, fv_input=write_renumbered_fv(tmp_out, input_pdb)
 
     # Process (align + compute angles + visualize)
     result = process(
@@ -425,14 +412,11 @@ def main():
     parser = argparse.ArgumentParser(description="Calculate TCR geometry from pseudoatom-defined axes (no geometry modification).")
     parser.add_argument("--input_pdb", type=str, help="Path to input PDB.")
     parser.add_argument("--out_path", type=str, required=True)
-    parser.add_argument("--data_path", type=str, required=False,
-                        help="Folder with chain_A/average_structure_with_pca.pdb and chain_B/average_structure_with_pca.pdb (with CEN/PC1/PC2 on chain Z).")
     parser.add_argument("--vis", action="store_true", help="PyMOL visualization.")
     args = parser.parse_args()
-    dp = resolve_data_path(args.data_path)
-    vis_val=not args.vis
+    vis_val= True if args.vis else False
     if args.input_pdb:
-        run(args.input_pdb, args.out_path, str(dp), vis=vis_val)
+        run(args.input_pdb, args.out_path, vis=vis_val)
 
 
 if __name__ == "__main__":
